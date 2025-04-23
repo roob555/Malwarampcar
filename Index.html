@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Śledzenie przylotów</title>
+  <style>
+    body {
+      font-family: sans-serif;
+      padding: 20px;
+      background-color: #f8f9fa;
+    }
+    h1 {
+      text-align: center;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 20px;
+    }
+    th, td {
+      padding: 10px;
+      border: 1px solid #ccc;
+      text-align: center;
+    }
+    input {
+      width: 100%;
+      padding: 5px;
+    }
+    button {
+      margin-top: 20px;
+      padding: 10px 15px;
+      font-size: 16px;
+      cursor: pointer;
+    }
+  </style>
+</head>
+<body>
+  <h1>Tablica Przylotów KEF</h1>
+  <button onclick="clearTable()">Wyczyść</button>
+  <table>
+    <thead>
+      <tr>
+        <th>Flight No</th>
+        <th>From</th>
+        <th>Time</th>
+        <th>Gate</th>
+        <th>Agent</th>
+      </tr>
+    </thead>
+    <tbody id="flightTable">
+      <!-- Wiersze będą tutaj generowane automatycznie -->
+    </tbody>
+  </table>
+
+  <script>
+    const table = document.getElementById('flightTable');
+    const storageKey = 'kefFlights';
+
+    function createRow(index) {
+      const row = document.createElement('tr');
+
+      const flightInput = document.createElement('input');
+      flightInput.placeholder = 'np. FI528';
+      flightInput.addEventListener('change', () => fetchFlightData(index, flightInput.value));
+
+      const fromCell = document.createElement('td');
+      const timeCell = document.createElement('td');
+      const gateCell = document.createElement('td');
+
+      const agentInput = document.createElement('input');
+      agentInput.placeholder = 'imię agenta';
+
+      const cells = [
+        document.createElement('td'),
+        fromCell,
+        timeCell,
+        gateCell,
+        document.createElement('td'),
+      ];
+
+      cells[0].appendChild(flightInput);
+      cells[4].appendChild(agentInput);
+
+      cells.forEach(cell => row.appendChild(cell));
+      return row;
+    }
+
+    function fetchFlightData(index, flightNumber) {
+      fetch('https://kefarrival.fly.dev/api/arrival')
+        .then(res => res.json())
+        .then(data => {
+          const flight = data.find(f => f.flightNumber === flightNumber.toUpperCase());
+          if (!flight) return;
+
+          const row = table.children[index];
+          row.children[1].innerText = flight.origin;
+          row.children[2].innerText = flight.time;
+          row.children[3].innerText = flight.gate;
+
+          saveTableData();
+        });
+    }
+
+    function saveTableData() {
+      const data = [];
+      for (let i = 0; i < table.children.length; i++) {
+        const row = table.children[i];
+        const flightNo = row.children[0].querySelector('input').value;
+        const from = row.children[1].innerText;
+        const time = row.children[2].innerText;
+        const gate = row.children[3].innerText;
+        const agent = row.children[4].querySelector('input').value;
+        data.push({ flightNo, from, time, gate, agent });
+      }
+      localStorage.setItem(storageKey, JSON.stringify(data));
+    }
+
+    function loadTableData() {
+      const data = JSON.parse(localStorage.getItem(storageKey)) || [];
+      data.forEach((rowData, index) => {
+        const row = table.children[index];
+        row.children[0].querySelector('input').value = rowData.flightNo;
+        row.children[1].innerText = rowData.from;
+        row.children[2].innerText = rowData.time;
+        row.children[3].innerText = rowData.gate;
+        row.children[4].querySelector('input').value = rowData.agent;
+      });
+    }
+
+    function clearTable() {
+      localStorage.removeItem(storageKey);
+      table.innerHTML = '';
+      createRows();
+    }
+
+    function createRows() {
+      for (let i = 0; i < 30; i++) {
+        const row = createRow(i);
+        table.appendChild(row);
+      }
+      loadTableData();
+    }
+
+    createRows();
+  </script>
+</body>
+</html>
